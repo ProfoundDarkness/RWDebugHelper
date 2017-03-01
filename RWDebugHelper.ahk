@@ -259,7 +259,7 @@ initSettings()
 		key := v
 		val := set[key]
 		IniRead, val, %iniFile%, Settings, %key%
-		if (key == keyMonoSwitch (val == err or !isConfirmation(val)))
+		if (key == keyMonoSwitch and (val == err or !isConfirmation(val)))
 		{
 			MsgBox, % 4+32, RWDebugHelper Auto Swap Dlls on Debug?, RWDebugHelper has the ability to automatically swap between versions of mono.dll when the debug hotkey is pressed.  Would you like the dll to automatically be swapped?
 			IfMsgBox, Yes
@@ -288,7 +288,6 @@ initSettings()
 			if (key == keyDebugFile and (val == err or !FileExist(set[keyFilePath] . val)))
 			{
 				val := handleFileSelection(monoFile, set[keyFilePath], def[keyDebugFile], "debug (FOR debugging)")
-				msgbox %val%
 				if (!val)
 					goto subCancelSetup
 				IniWrite, %val%, %iniFile%, Settings, %key%
@@ -385,7 +384,7 @@ handleFileSelection(monoFile, dDir, defaultFile, strDetail)
 	
 	if (FileExist(dDir . monoFile))
 	{
-		MsgBox, % 4+32, RWDebugHelper, % "Is the " . monoFile . " found in '" . dDir "' the " . strDetail . " dll file?"
+		MsgBox, % 3+32, RWDebugHelper, % "Is the " . monoFile . " found in '" . dDir "' the " . strDetail . " dll file?  Canceling will prompt for a backup file."
 		doCopy := false
 		IfMsgBox, Yes
 		{
