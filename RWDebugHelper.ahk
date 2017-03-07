@@ -90,6 +90,8 @@ Xamarin_6:
 		PixelGetColor, statusColor, % winWidth / 2 - 160, 50 ;x808
 	}
 	
+	Sleep, 100
+	
 	;check to see if the statusbar indicates an error state (again using pixel colors...)
 	PixelGetColor, statusColor, % winWidth / 2 + 143, 42 ;x1111
 	if (isNear(statusColor, "0x4F6DF5", 10))
@@ -103,6 +105,7 @@ Xamarin_6:
 	
 	; now lets engage the soft debugger (ugh)
 	MouseClick, Left, 269, 11	;click Run
+	Sleep, 100
 	MouseClick, Left, 306, 78	;click Run With...
 	MouseClick, Left, 675, 74	;click Custom Configuration (opens a dialog)
 	Sleep, 500
@@ -118,7 +121,9 @@ Xamarin_6:
 	MouseClick, Left, 526, 175	;click on Connect button
 	
 	;now we wait for rimworld to close...
-	WinWaitClose, % "ahk_pid " . rwPID
+	;WinWaitClose, % "ahk_pid " . rwPID
+	Process, WaitClose, %rwPID%
+	
 	
 	;and then restore the mono.dll file to stock.
 	if (settings[keyMonoSwitch])
