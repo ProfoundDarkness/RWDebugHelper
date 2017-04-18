@@ -12,6 +12,12 @@
 	#NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
 	SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
 	SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
+	
+	OnExit, exitLabel
+	
+	clipbak := ""
+	debugFileActive := false
+	
 	ready := false
 	validIDE := false
 	iniFile := A_WorkingDir . (SubStr(A_WorkingDir, StrLen(A_WorkingDir), 1) != "\" ? "\" : "") . "RWDebugHelper.ini"
@@ -26,10 +32,12 @@
 	
 	codePathsImplemented := {}
 	codePathsImplemented.Insert("Xamarin 6")
+	codePathsImplemented.Insert("Visual Studio 2017")
 	
 	;Titles have all spaces replaced with underscores.  Key is an implemented code path from the array above.
 	winTitleIDE := {}
 	winTitleIDE.Insert("Xamarin_6", "XamarinStudio.exe")
+	winTitleIDE.Insert("Visual_Studio_2017", "devenv.exe")
 	
 	settings := initSettings()
 	if (settings)
@@ -70,6 +78,7 @@ Xamarin_6:
 	;at full screen 1936 is my width...
 	CoordMode, Mouse, Client
 	CoordMode, Pixel, Client
+	BlockInput, Mouse
 	
 	MouseClick, Left, 230, 11	; click Build menu item.
 	MouseClick, Left, 278, 120	; click Rebuild <project> menu item.
@@ -90,7 +99,7 @@ Xamarin_6:
 		PixelGetColor, statusColor, % winWidth / 2 - 160, 50 ;x808
 	}
 	
-	Sleep, 100
+	Sleep, 400
 	
 	;check to see if the statusbar indicates an error state (again using pixel colors...)
 	PixelGetColor, statusColor, % winWidth / 2 + 143, 42 ;x1111
@@ -99,7 +108,22 @@ Xamarin_6:
 	
 	; build succeeded, lets swap out the dll and run rimworld
 	if (settings[keyMonoSwitch])
-		toggleDebugOn()
+	{
+		copyCode := 1
+		tried := 0
+		while (copyCode and tried < 10)
+		{
+			copyCode := toggleDebugOn()
+			if (!copyCode)
+				sleep 100
+			tried++
+		}
+		if (copyCode)
+		{
+			msgbox, , RWDebugHelper, Error number %copyCode% trying to copy the debug mono.dll file.  Ending attempt.
+			return
+		}
+	}
 
 	rwPID := runRimworld()
 	
@@ -123,19 +147,204 @@ Xamarin_6:
 	;now we wait for rimworld to close...
 	;WinWaitClose, % "ahk_pid " . rwPID
 	Process, WaitClose, %rwPID%
-	
+	rwPID := 0
 	
 	;and then restore the mono.dll file to stock.
 	if (settings[keyMonoSwitch])
-		toggleDebugOff()
+	{
+		copyCode := 1
+		tried := 0
+		while (copyCode and tried < 10)
+		{
+			copyCode := toggleDebugOff()
+			if (!copyCode)
+				sleep 100
+			tried++
+		}
+		if (copyCode)
+			msgbox, , RWDebugHelper, Error number %copyCode% trying to restore the stock mono.dll file.
+	}
+	
+	return
+}
+
+Visual_Studio_2017:
+{
+	winID := "ahk_exe " . winTitleIDE[settings[keyCodePath]]
+	handle := WinActive(winID)
+	winHandle := "ahk_id " . handle
+	
+	; wait for modifier keys be released...
+	waitKeyUp("Control")
+	waitKeyUp("Alt")
+	waitKeyUp("Shift")
+	SetKeyDelay, 10, 10 ; useful to specify this, change this one item to change key timings elsewhere.
+	
+	; initiate rebuild... (ControlSend and WinMenuSelectItem don't work.)
+	if (!WinActive(winHandle))
+		return
+	Send, !b
+	Send, r
+	if (!WinActive(winHandle))
+		return
+	
+	; sleep for a moment...
+	Sleep, 500
+	if (!WinActive(winHandle))
+		return
+	
+	; store the clipboard data
+	clipbak := Clipboard
+	
+	; watch for the end of the build...
+	buildDone := false
+	savedOutput := ""
+	while (!buildDone)
+	{
+		Send, ^!o
+		Send, ^a
+		Sleep, 50
+		if (!WinActive(winHandle))
+			break
+		Send, ^c
+		if (InStr(Clipboard, "=========="))
+		{
+			savedOutput := Clipboard
+			buildDone := true
+		}
+	}
+	
+	; retore the clipboard.
+	Clipboard := clipback
+	clipback := ""
+	
+	if (!buildDone)
+		return
+	
+	; determine if the build was successful...
+	if (!InStr(savedOutput, "0 failed"))
+		return
+	
+	; build succeeded, lets swap out the dll and run rimworld
+	if (settings[keyMonoSwitch])
+	{
+		copyCode := 1
+		tried := 0
+		while (copyCode and tried < 10)
+		{
+			copyCode := toggleDebugOn()
+			if (!copyCode)
+				sleep 100
+			tried++
+		}
+		if (copyCode)
+		{
+			msgbox, , RWDebugHelper, Error number %copyCode% trying to copy the debug mono.dll file.  Ending attempt.
+			return
+		}
+	}
+	
+	; run rimworld...
+	rwPID := runRimworld()
+	
+	; start the debug process...
+	WinActivate, %winHandle%
+	while (!WinActive(winHandle))
+		sleep 10
+	; Debug -> Attach Unity Debugger
+	Send, !d
+	Send, {Down}
+	Send, {Down}
+	Send, {Down}
+	Send, {Down}
+	Send, {Enter}
+	ignoreList := handle
+	ignoreList .= "," . waitNewWindow(ignoreList)
+	; Input IP
+	Send, {Tab}
+	Send, {Space}
+	waitNewWindow(ignoreList)
+	; type in the ip and port...
+	Send, {Tab}
+	Send, {Tab}
+	Send, {Tab}
+	Send, 127
+	Send, {Tab}
+	Send, 0
+	Send, {Tab}
+	Send, 0
+	Send, {Tab}
+	Send, 1
+	Send, {Tab}
+	Send, 12345
+	; confirm setting
+	Sleep, 100
+	Send, {Enter}
+	
+	;now we wait for rimworld to close...
+	;WinWaitClose, % "ahk_pid " . rwPID
+	Process, WaitClose, %rwPID%
+	
+	rwPID := 0
+	
+	;and then restore the mono.dll file to stock.
+	if (settings[keyMonoSwitch])
+	{
+		copyCode := 1
+		tried := 0
+		while (copyCode and tried < 10)
+		{
+			copyCode := toggleDebugOff()
+			if (!copyCode)
+				sleep 100
+			tried++
+		}
+		if (copyCode)
+			msgbox, , RWDebugHelper, Error number %copyCode% trying to restore the stock mono.dll file.
+	}
 	
 	return
 }
 
 
-
-
 ;general helpers
+
+; comma separated list of window hwnds to ignore.
+waitNewWindow(notIDList)
+{
+	global winID
+	
+	StringSplit, skipID, notIDList, `,
+	found := false
+	cur := 0
+	while (!found)
+	{
+		cur := WinActive(winID)
+		if (cur = 0)
+			continue
+		
+		hit := false
+		Loop, %skipID0%
+		{
+;			msgbox % "Checking cur: " . cur . "  against " . skipID%A_Index% . " index " . A_Index . " of " . skipID0
+			if (cur = skipID%A_Index%)
+				hit := true
+		}
+;		msgbox %cur% hit? %hit%
+		if (!hit)
+			found := true
+		Sleep, 10
+	}
+;	msgbox found new item: %cur% skip list: %notIDList%
+	return cur
+}
+
+waitKeyUp(keyName)
+{
+	while (GetKeyState(keyName))
+		Sleep, 10
+	return
+}
 
 ; runs rimworld (with maximized mode as that's my preference, TODO make that a setting.
 runRimworld()
@@ -176,8 +385,11 @@ toggleDebugOn()
 	global monoFile
 	global keyFilePath
 	global keyDebugFile
+	global debugFileActive
 	
 	FileCopy, % settings[keyFilePath] . settings[keyDebugFile], % settings[keyFilePath] . monoFile, 1
+	
+	debugFileActive := true
 	
 	return A_LastError
 }
@@ -189,8 +401,11 @@ toggleDebugOff()
 	global monoFile
 	global keyFilePath
 	global keyStockFile
+	global debugFileActive
 	
 	FileCopy, % settings[keyFilePath] . settings[keyStockFile], % settings[keyFilePath] . monoFile, 1
+	
+	debugFileActive := false
 	
 	return A_LastError
 }
@@ -512,9 +727,26 @@ getMonoFile(file, type)
 #If A_IsCompiled = ""
 
 ; reload the script
-!^r::
+!^t::
 {
 	Reload
 	return
 }
 
+exitLabel:
+{
+	if (clipback != "")
+		Clipboard := clipback
+	
+	if (rwPID != 0)
+	{
+		Process, Exist, %rwPID%
+		if (ErrorLevel != 0)
+			Process, Close, %rwPID%
+	}
+	
+	if (debugFileActive)
+		toggleDebugOff()
+	
+	ExitApp, 0
+}
