@@ -741,12 +741,14 @@ exitLabel:
 	if (rwPID != 0)
 	{
 		Process, Exist, %rwPID%
+		;msgbox %ErrorLevel%
 		if (ErrorLevel != 0)
 			Process, Close, %rwPID%
 	}
 	
 	if (debugFileActive)
 		toggleDebugOff()
+		;msgbox % toggleDebugOff()
 	
 	ExitApp, 0
 }

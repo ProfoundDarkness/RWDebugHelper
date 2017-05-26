@@ -13,6 +13,8 @@
 	SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
 	SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
 	
+	rwPID := 0
+	
 	dirSrc := ".\RWRapidGameStart\"
 	
 	imageNewColony := dirSrc . "btnNewColony.bmp"
@@ -22,6 +24,10 @@
 	imageNext := dirSrc . "btnNext.bmp"
 	imageNextX := 74
 	imageNextY := 18
+	
+	imageSelectDifficulty := dirSrc . "selectDifficulty.bmp"
+	imageSelectDifficultyX := 278
+	imageSelectDifficultyY := 12
 	
 	imageGenerate := dirSrc . "btnGenerate.bmp"
 	imageNextX := 74
@@ -66,19 +72,42 @@
 	return
 }
 
+F12::
+{
+	rimWorldRunning()
+	return
+}
+
 #IfWinActive, RimWorld by Ludeon Studios
 
 F12::
 {
 	gosub doMainGameStart
-	
 	return
+}
+
+rimWorldRunning()
+{
+	global rwPID
+	if (rwPID != 0)
+	{
+		Process, Exist, %rwPID%
+		if (ErrorLevel = 0)
+			rwPID := 0
+	}
+	if (rwPID = 0)
+		rwPID := WinExist("ahk_exe RimWorld1546Win.exe")
+	if (rwPID = 0)
+		Run, D:\Games\RimWorld1546Win\RimWorld1546Win.exe, D:\Games\RimWorld1546Win\, rwPID
+	if (rwPID != 0)
+		return true
+	return false
 }
 
 F11::
 {
 	;click the menu button to quit...
-	MouseMove, 0, 0
+	MouseMove, 0, 50
 	ImageSearch, x, y, 0, 0, %A_ScreenWidth%, %A_ScreenHeight%, %imageMenu%
 	if (ErrorLevel)
 		return
@@ -87,7 +116,7 @@ F11::
 	MouseClick, Left, %x%, %y%
 	
 	;Wait for the menu to appear.
-	MouseMove, 0, 0
+	MouseMove, 0, 50
 	er := 1
 	while (er)
 	{
@@ -99,7 +128,7 @@ F11::
 	MouseClick, Left, %x%, %y%
 	
 	;Wait for the confirmation to appear.
-	MouseMove, 0, 0
+	MouseMove, 0, 50
 	er := 1
 	while (er)
 	{
@@ -111,7 +140,7 @@ F11::
 	MouseClick, Left, %x%, %y%
 	
 	;Wait for the main screen to appear and branch to the other path of code.
-	MouseMove, 0, 0
+	MouseMove, 0, 50
 	er := 1
 	while (er)
 	{
@@ -126,7 +155,7 @@ F11::
 F10::
 {
 	;Wait for the main screen to appear and branch to the other path of code.
-	MouseMove, 0, 0
+	MouseMove, 0, 50
 	er := 1
 	while (er)
 	{
@@ -141,7 +170,7 @@ F10::
 doMainGameStart:
 {
 	;select New Colony button or error out if not present.
-	MouseMove, 0, 0
+	MouseMove, 0, 50
 	ImageSearch, x, y, 0, 0, %A_ScreenWidth%, %A_ScreenHeight%, %imageNewColony%
 	if (ErrorLevel)
 		return
@@ -150,7 +179,7 @@ doMainGameStart:
 	MouseClick, Left, %x%, %y%
 	
 	;wait for Next button to appear (Choose Scenario screen)
-	MouseMove, 0, 0
+	MouseMove, 0, 50
 	er := 1
 	while (er)
 	{
@@ -161,21 +190,25 @@ doMainGameStart:
 	y += imageNextY
 	MouseClick, Left, %x%, %y%
 	
-	;wait for Next button to appear (AI Storyteller/Difficulty)
-	Sleep, 100 ; This bit is goofy because the button is the same...  Consider adding difficulty selector and wait for that to appear instead.
-	MouseMove, 0, 0
+	;wait for difficulty selection to appear (AI Storyteller/Difficulty), select difficulty then click next.
+	MouseMove, 0, 50
 	er := 1
 	while (er)
 	{
-		ImageSearch, x, y, 0, 0, %A_ScreenWidth%, %A_ScreenHeight%, %imageNext%
+		ImageSearch, x, y, 0, 0, %A_ScreenWidth%, %A_ScreenHeight%, %imageSelectDifficulty%
 		er := ErrorLevel
 	}
+	x += imageSelectDifficultyX
+	y += imageSelectDifficultyY
+	MouseClick, Left, %x%, %y%
+	
+	ImageSearch, x, y, 0, 0, %A_ScreenWidth%, %A_ScreenHeight%, %imageNext%
 	x += imageNextX
 	y += imageNextY
 	MouseClick, Left, %x%, %y%
 	
 	;wait for Generate button to appear (Create world)
-	MouseMove, 0, 0
+	MouseMove, 0, 50
 	er := 1
 	while (er)
 	{
@@ -201,7 +234,7 @@ doMainGameStart:
 	MouseClick, Left, %gx%, %gy%
 	
 	;Wait for Next button to appear (Select Landing Site)
-	MouseMove, 0, 0
+	MouseMove, 0, 50
 	er := 1
 	while (er)
 	{
@@ -217,7 +250,7 @@ doMainGameStart:
 	y += imageAdvancedY
 	MouseClick, Left, %x%, %y%
 	
-	MouseMove, 0, 0
+	MouseMove, 0, 50
 	er := 1
 	while (er)
 	{
@@ -245,9 +278,9 @@ doMainGameStart:
 	
 	MouseClick, Left, %nx%, %ny%
 	
-	MouseMove, 0, 0
+	MouseMove, 0, 50
 	;Wait for the Start button (Create Characters/Start)
-	MouseMove, 0, 0
+	MouseMove, 0, 50
 	er := 1
 	while (er)
 	{
